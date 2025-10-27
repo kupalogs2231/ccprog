@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simple Web Login Demo</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;font-size:16px}
+    body{display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#0f1720;color:#e6eef6}
+    .card{width:360px;padding:20px;border-radius:12px;background:linear-gradient(180deg,#111827, #0b1220);box-shadow:0 6px 18px rgba(2,6,23,.6)}
+    h1{font-size:20px;margin:0 0 12px}
+    label{display:block;font-size:13px;margin:8px 0 4px}
+    input[type=text],input[type=password],input[type=email]{width:100%;padding:10px;border-radius:8px;border:1px solid #203040;background:transparent;color:inherit}
+    button{width:100%;padding:10px;border-radius:8px;border:0;margin-top:12px;cursor:pointer}
+    .tab-row{display:flex;gap:8px;margin-bottom:12px}
+    .tab{flex:1;padding:8px;border-radius:8px;text-align:center;cursor:pointer;background:transparent;border:1px solid transparent}
+    .tab.active{background:#0b2032;border-color:#143249}
+    .muted{font-size:13px;color:#9fb1c8;margin-top:8px;text-align:center}
+    .linklike{color:#7dd3fc;cursor:pointer}
+    .error{color:#ffb4bb;font-size:13px;margin-top:8px}
+    .hidden{display:none}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div id="auth-area">
+      <div class="tab-row">
+        <div id="tab-login" class="tab active">Login</div>
+        <div id="tab-register" class="tab">Register</div>
+      </div>
+
+      <form id="login-form">
+        <label for="login-email">Email</label>
+        <input id="login-email" type="email" autocomplete="username" required />
+        <label for="login-password">Password</label>
+        <input id="login-password" type="password" autocomplete="current-password" required />
+        <label style="display:flex;align-items:center;margin-top:8px"><input id="remember" type="checkbox" style="margin-right:8px" /> Remember me</label>
+        <button type="submit">Log in</button>
+        <div id="login-error" class="error hidden"></div>
+        <div class="muted">Not registered? <span id="show-register" class="linklike">Create an account</span></div>
+      </form>
+
+      <form id="register-form" class="hidden">
+        <label for="reg-name">Full name</label>
+        <input id="reg-name" type="text" required />
+        <label for="reg-email">Email</label>
+        <input id="reg-email" type="email" autocomplete="username" required />
+        <label for="reg-password">Password</label>
+        <input id="reg-password" type="password" autocomplete="new-password" required />
+        <label for="reg-password2">Confirm password</label>
+        <input id="reg-password2" type="password" required />
+        <button type="submit">Create account</button>
+        <div id="reg-error" class="error hidden"></div>
+        <div class="muted">Already have an account? <span id="show-login" class="linklike">Sign in</span></div>
+      </form>
+    </div>
+
+    <div id="dashboard-area" class="hidden">
+      <h1>Welcome, <span id="user-name"></span></h1>
+      <p class="muted">This is a protected dashboard. You're logged in.</p>
+      <button id="logout">Log out</button>
+    </div>
+  </div>
+
+  <script>
+    // ---------- Utility functions ----------
+    async function sha256Base64(message){
+      const enc = new TextEncoder();
+      const data = enc.encode(message);
+      const hash = await crypto.subtle.digest('SHA-256', data);
+      const bytes = new Uint8Array(hash);
+      // convert to base64
+      let binary = '';
+      for(let b of bytes) binary += String.fromCharCode(b);
+      return btoa(binary);
+    }
+
+    function getUsers(){
+      const raw = localStorage.getItem('demo_users');
+      return raw ? JSON.parse(raw) : {};
+    }
+    function saveUsers(users){
+      localStorage.setItem('demo_users', JSON.stringify(users));
+    }
+    function saveSession(email, remember){
+      const session = {email, ts: Date.now()};
+      if(remember) localStorage.setItem('demo_session', JSON.stringify(session));
+      else sessionStorage.setItem('demo_session', JSON.stringify(session));
+    }
+    function clearSession(){
+      localStorage.removeItem('demo_session');
+      sessionStorage.removeItem('demo_session');
+    }
+    function getSession(){
+      return JSON.parse(sessionStorage.getItem('demo_session') || localStorage.getItem('demo_session') || 'null');
+    }
+
+    // ---------- UI wiring ----------
+    const tabLogin = document.getElementById('tab-login');
+    const tabRegister = document.getElementById('tab-register');
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+    const authArea = document.getElementById('auth-area');
+    const dashboardArea = document.getElementById('dashboard-area');
+    const userNameEl = document.getElementById('user-name');
+
+    function showLogin(){
+      tabLogin.classList.add('active'); tabRegister.classList.remove('active');
+      loginForm.classList.remove('hidden'); registerForm.classList.add('hidden');
+    }
+    function showRegister(){
+      tabRegister.classList.add('active'); tabLogin.classList.remove('active');
+      registerForm.classList.remove('hidden'); loginForm.classList.add('hidden');
+    }
+
+    tabLogin.addEventListener('click', showLogin);
+    tabRegister.addEventListener('click', showRegister);
+    document.getElementById('show-register').addEventListener('click', showRegister);
+    document.getElementById('show-login').addEventListener('click', showLogin);
+
+    // ---------- Register ----------
+    registerForm.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const name = document.getElementById('reg-name').value.trim();
+      const email = document.getElementById('reg-email').value.trim().toLowerCase();
+      const p1 = document.getElementById('reg-password').value;
+      const p2 = document.getElementById('reg-password2').value;
+      const err = document.getElementById('reg-error');
+      err.classList.add('hidden'); err.textContent = '';
+
+      if(!name || !email || !p1) { err.textContent = 'Please fill all fields.'; err.classList.remove('hidden'); return; }
+      if(p1 !== p2){ err.textContent = 'Passwords do not match.'; err.classList.remove('hidden'); return; }
+      if(p1.length < 6){ err.textContent = 'Password must be at least 6 characters.'; err.classList.remove('hidden'); return; }
+
+      const users = getUsers();
+      if(users[email]){ err.textContent = 'User already exists. Please login.'; err.classList.remove('hidden'); return; }
+
+      const hashed = await sha256Base64(p1);
+      users[email] = {name, hash: hashed, created: Date.now()};
+      saveUsers(users);
+
+      // auto-login after register
+      saveSession(email, true);
+      showDashboard(email);
+    });
+
+    // ---------- Login ----------
+    loginForm.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const email = document.getElementById('login-email').value.trim().toLowerCase();
+      const password = document.getElementById('login-password').value;
+      const remember = document.getElementById('remember').checked;
+      const err = document.getElementById('login-error');
+      err.classList.add('hidden'); err.textContent = '';
+
+      const users = getUsers();
+      const user = users[email];
+      if(!user){ err.textContent = 'Invalid email or password.'; err.classList.remove('hidden'); return; }
+
+      const hashed = await sha256Base64(password);
+      if(hashed !== user.hash){ err.textContent = 'Invalid email or password.'; err.classList.remove('hidden'); return; }
+
+      saveSession(email, remember);
+      showDashboard(email);
+    });
+
+    // ---------- Dashboard ----------
+    function showDashboard(email){
+      const users = getUsers();
+      const user = users[email];
+      if(!user){ alert('Unknown user.'); return; }
+      authArea.classList.add('hidden');
+      dashboardArea.classList.remove('hidden');
+      userNameEl.textContent = user.name || email;
+    }
+
+    document.getElementById('logout').addEventListener('click', ()=>{
+      clearSession();
+      dashboardArea.classList.add('hidden');
+      authArea.classList.remove('hidden');
+      showLogin();
+    });
+
+    // ---------- Init: restore session if present ----------
+    (function init(){
+      const session = getSession();
+      if(session && session.email){
+        const users = getUsers();
+        if(users[session.email]){
+          showDashboard(session.email);
+          return;
+        }
+      }
+      // otherwise show login
+      showLogin();
+    })();
+  </script>
+</body>
+</html>
