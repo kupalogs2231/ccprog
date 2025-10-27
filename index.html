@@ -1,35 +1,101 @@
-<!--
-Simple Web Login (single-file)
-How to use: save this as `login.html` and open in your browser.
-Features:
- - Register new users (saved to localStorage)
- - Login with email/password (passwords are hashed client-side using SHA-256)
- - Protected "Dashboard" view that requires login
- - Remember me (optional) using localStorage session
-This is a demo only — do NOT use for production authentication.
--->
-
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Simple Web Login Demo</title>
+  <title>Centered Login/Register</title>
   <style>
-    :root{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;font-size:16px}
-    body{display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#0f1720;color:#e6eef6}
-    .card{width:360px;padding:20px;border-radius:12px;background:linear-gradient(180deg,#111827, #0b1220);box-shadow:0 6px 18px rgba(2,6,23,.6)}
-    h1{font-size:20px;margin:0 0 12px}
-    label{display:block;font-size:13px;margin:8px 0 4px}
-    input[type=text],input[type=password],input[type=email]{width:100%;padding:10px;border-radius:8px;border:1px solid #203040;background:transparent;color:inherit}
-    button{width:100%;padding:10px;border-radius:8px;border:0;margin-top:12px;cursor:pointer}
-    .tab-row{display:flex;gap:8px;margin-bottom:12px}
-    .tab{flex:1;padding:8px;border-radius:8px;text-align:center;cursor:pointer;background:transparent;border:1px solid transparent}
-    .tab.active{background:#0b2032;border-color:#143249}
-    .muted{font-size:13px;color:#9fb1c8;margin-top:8px;text-align:center}
-    .linklike{color:#7dd3fc;cursor:pointer}
-    .error{color:#ffb4bb;font-size:13px;margin-top:8px}
-    .hidden{display:none}
+    :root {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      font-size: 16px;
+    }
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0f1720;
+      color: #e6eef6;
+    }
+    .card {
+      width: 360px;
+      padding: 20px;
+      border-radius: 12px;
+      background: linear-gradient(180deg, #111827, #0b1220);
+      box-shadow: 0 6px 18px rgba(2, 6, 23, 0.6);
+    }
+    h1 {
+      font-size: 20px;
+      margin: 0 0 12px;
+      text-align: center;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      margin: 8px 0 4px;
+    }
+    input[type=text], input[type=password], input[type=email] {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #203040;
+      background: transparent;
+      color: inherit;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 0;
+      margin-top: 12px;
+      cursor: pointer;
+      background-color: #f1f5f9;
+      color: #111827;
+      font-weight: 600;
+      transition: 0.3s;
+    }
+    button:hover {
+      background-color: #dbeafe;
+    }
+    .tab-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      justify-content: center;
+    }
+    .tab {
+      flex: 1;
+      padding: 8px;
+      border-radius: 8px;
+      text-align: center;
+      cursor: pointer;
+      background: transparent;
+      border: 1px solid transparent;
+    }
+    .tab.active {
+      background: #0b2032;
+      border-color: #143249;
+    }
+    .muted {
+      font-size: 13px;
+      color: #9fb1c8;
+      margin-top: 8px;
+      text-align: center;
+    }
+    .linklike {
+      color: #7dd3fc;
+      cursor: pointer;
+    }
+    .error {
+      color: #ffb4bb;
+      font-size: 13px;
+      margin-top: 8px;
+      text-align: center;
+    }
+    .hidden {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -74,13 +140,11 @@ This is a demo only — do NOT use for production authentication.
   </div>
 
   <script>
-    // ---------- Utility functions ----------
     async function sha256Base64(message){
       const enc = new TextEncoder();
       const data = enc.encode(message);
       const hash = await crypto.subtle.digest('SHA-256', data);
       const bytes = new Uint8Array(hash);
-      // convert to base64
       let binary = '';
       for(let b of bytes) binary += String.fromCharCode(b);
       return btoa(binary);
@@ -90,9 +154,7 @@ This is a demo only — do NOT use for production authentication.
       const raw = localStorage.getItem('demo_users');
       return raw ? JSON.parse(raw) : {};
     }
-    function saveUsers(users){
-      localStorage.setItem('demo_users', JSON.stringify(users));
-    }
+    function saveUsers(users){ localStorage.setItem('demo_users', JSON.stringify(users)); }
     function saveSession(email, remember){
       const session = {email, ts: Date.now()};
       if(remember) localStorage.setItem('demo_session', JSON.stringify(session));
@@ -106,7 +168,6 @@ This is a demo only — do NOT use for production authentication.
       return JSON.parse(sessionStorage.getItem('demo_session') || localStorage.getItem('demo_session') || 'null');
     }
 
-    // ---------- UI wiring ----------
     const tabLogin = document.getElementById('tab-login');
     const tabRegister = document.getElementById('tab-register');
     const loginForm = document.getElementById('login-form');
@@ -129,7 +190,6 @@ This is a demo only — do NOT use for production authentication.
     document.getElementById('show-register').addEventListener('click', showRegister);
     document.getElementById('show-login').addEventListener('click', showLogin);
 
-    // ---------- Register ----------
     registerForm.addEventListener('submit', async (e)=>{
       e.preventDefault();
       const name = document.getElementById('reg-name').value.trim();
@@ -139,7 +199,7 @@ This is a demo only — do NOT use for production authentication.
       const err = document.getElementById('reg-error');
       err.classList.add('hidden'); err.textContent = '';
 
-      if(!name || !email || !p1) { err.textContent = 'Please fill all fields.'; err.classList.remove('hidden'); return; }
+      if(!name || !email || !p1){ err.textContent = 'Please fill all fields.'; err.classList.remove('hidden'); return; }
       if(p1 !== p2){ err.textContent = 'Passwords do not match.'; err.classList.remove('hidden'); return; }
       if(p1.length < 6){ err.textContent = 'Password must be at least 6 characters.'; err.classList.remove('hidden'); return; }
 
@@ -149,13 +209,10 @@ This is a demo only — do NOT use for production authentication.
       const hashed = await sha256Base64(p1);
       users[email] = {name, hash: hashed, created: Date.now()};
       saveUsers(users);
-
-      // auto-login after register
       saveSession(email, true);
       showDashboard(email);
     });
 
-    // ---------- Login ----------
     loginForm.addEventListener('submit', async (e)=>{
       e.preventDefault();
       const email = document.getElementById('login-email').value.trim().toLowerCase();
@@ -175,7 +232,6 @@ This is a demo only — do NOT use for production authentication.
       showDashboard(email);
     });
 
-    // ---------- Dashboard ----------
     function showDashboard(email){
       const users = getUsers();
       const user = users[email];
@@ -192,7 +248,6 @@ This is a demo only — do NOT use for production authentication.
       showLogin();
     });
 
-    // ---------- Init: restore session if present ----------
     (function init(){
       const session = getSession();
       if(session && session.email){
@@ -202,7 +257,6 @@ This is a demo only — do NOT use for production authentication.
           return;
         }
       }
-      // otherwise show login
       showLogin();
     })();
   </script>
